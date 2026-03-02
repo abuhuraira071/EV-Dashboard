@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>EV WPT Monitor — Smart Wireless Charging</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+</head>
+
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+  <div class="toast" id="toast">
+    <div class="toast-dot"></div>
+    <span id="toastMsg"></span>
+  </div>
+
+  <div class="app">
+
+    <!-- ═══════════════ SIDEBAR ═══════════════ -->
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+
+      <div class="sidebar-brand">
+        <div class="brand-row">
+          <div class="brand-mark">⚡</div>
+          <div class="brand-text">
+            <div class="brand-name">EV WPT Monitor</div>
+            <div class="brand-sub">Live Telemetry</div>
+          </div>
+        </div>
+        <div class="project-name">IoT Smart Dynamic Wireless Charging</div>
+      </div>
+
+      <div class="status-pill" id="statusPill">
+        <div class="status-dot"></div>
+        <span id="statusLabel">Offline</span>
+      </div>
+
+      <div class="sidebar-body">
+
+        <div class="sig-item">
+          <div class="sig-meta">
+            <span class="sig-name">Output Voltage</span>
+            <span class="sig-unit">V</span>
+          </div>
+          <div class="sig-val" style="color:var(--blue)" id="sb-v">—</div>
+          <div class="track">
+            <div class="track-fill" id="tb-v" style="background:var(--blue)"></div>
+          </div>
+        </div>
+
+        <div class="sig-item">
+          <div class="sig-meta">
+            <span class="sig-name">Charging Current</span>
+            <span class="sig-unit">A</span>
+          </div>
+          <div class="sig-val" style="color:var(--green)" id="sb-i">—</div>
+          <div class="track">
+            <div class="track-fill" id="tb-i" style="background:var(--green)"></div>
+          </div>
+        </div>
+
+        <div class="sig-item">
+          <div class="sig-meta">
+            <span class="sig-name">State of Charge</span>
+            <span class="sig-unit">%</span>
+          </div>
+          <div class="sig-val" style="color:var(--amber)" id="sb-s">—</div>
+          <div class="track">
+            <div class="track-fill" id="tb-s" style="background:var(--amber)"></div>
+          </div>
+        </div>
+
+        <div class="sig-item">
+          <div class="sig-meta">
+            <span class="sig-name">Transfer Power</span>
+            <span class="sig-unit">W</span>
+          </div>
+          <div class="sig-val" style="color:var(--purple)" id="sb-p">—</div>
+          <div class="track">
+            <div class="track-fill" id="tb-p" style="background:var(--purple)"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="meta-row"><span>Topic</span><span class="meta-val">ev/data</span></div>
+        <div class="meta-row"><span>Broker</span><span class="meta-val">EMQX Cloud</span></div>
+        <div class="meta-row"><span>Protocol</span><span class="meta-val">MQTT TLS</span></div>
+        <div class="meta-row"><span>Samples</span><span class="meta-val" id="sb-n">0</span></div>
+      </div>
+    </aside>
+
+    <!-- ═══════════════ MAIN ═══════════════ -->
+    <div class="main">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+
+        <!-- LEFT -->
+        <div class="topbar-left">
+          <button class="hamburger" onclick="openSidebar()">
+            <span></span><span></span><span></span>
+          </button>
+          <div class="page-sub">EV Telemetry</div>
+        </div>
+
+        <!-- CENTER — title -->
+        <div class="topbar-center">
+          <div class="page-title">Wireless Charging Monitor</div>
+          <div class="page-breadcrumb">IoT · EV · WPT · MQTT</div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="topbar-right">
+          <div class="topic-chip">ev/data</div>
+
+          <!-- Theme toggle -->
+          <button class="theme-btn" id="themeBtn" title="Toggle light / dark mode" onclick="toggleTheme()">
+            <span id="themeIcon">☀️</span>
+          </button>
+
+          <div class="clock-block">
+            <div class="clock-time" id="clock">00:00:00</div>
+            <div class="clock-date" id="clockDate">—</div>
+          </div>
+        </div>
+
+      </header>
+
+      <!-- CONTENT -->
+      <div class="content">
+
+        <!-- 4 KPI cards -->
+        <div class="cards-grid">
+
+          <div class="kpi v">
+            <div class="kpi-top">
+              <div class="kpi-label">Output Voltage</div>
+              <div class="kpi-badge">⚡</div>
+            </div>
+            <div class="kpi-value" id="kv-v">—</div>
+            <div class="kpi-unit">Volts (V)</div>
+            <div class="kpi-desc">Vehicle Rectifier Output</div>
+          </div>
+
+          <div class="kpi i">
+            <div class="kpi-top">
+              <div class="kpi-label">Charging Current</div>
+              <div class="kpi-badge">〜</div>
+            </div>
+            <div class="kpi-value" id="kv-i">—</div>
+            <div class="kpi-unit">Amperes (A)</div>
+            <div class="kpi-desc">Battery Charging Current</div>
+          </div>
+
+          <div class="kpi s">
+            <div class="kpi-top">
+              <div class="kpi-label">State of Charge</div>
+              <div class="kpi-badge">🔋</div>
+            </div>
+            <div class="kpi-value" id="kv-s">—</div>
+            <div class="kpi-unit">Percent (%)</div>
+            <div class="kpi-desc">Li-Ion Battery SOC</div>
+            <div class="soc-track">
+              <div class="soc-fill" id="soc-fill"></div>
+            </div>
+          </div>
+
+          <div class="kpi p">
+            <div class="kpi-top">
+              <div class="kpi-label">Transfer Power</div>
+              <div class="kpi-badge">◎</div>
+            </div>
+            <div class="kpi-value" id="kv-p">—</div>
+            <div class="kpi-unit">Watts (W)</div>
+            <div class="kpi-desc">Wireless Power Transfer</div>
+          </div>
+
+        </div>
+
+        <!-- 4 Individual Signal Charts (2×2 grid) -->
+        <div class="charts-row">
+
+          <!-- Voltage Chart -->
+          <div class="panel ch-v">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <div class="panel-dot"></div>
+                <div class="panel-title">Output Voltage</div>
+              </div>
+              <div class="panel-right">
+                <div class="panel-live-val" id="ch-val-v">—</div>
+                <div class="panel-unit-tag">V</div>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="chartV"></canvas></div>
+          </div>
+
+          <!-- Current Chart -->
+          <div class="panel ch-i">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <div class="panel-dot"></div>
+                <div class="panel-title">Charging Current</div>
+              </div>
+              <div class="panel-right">
+                <div class="panel-live-val" id="ch-val-i">—</div>
+                <div class="panel-unit-tag">A</div>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="chartI"></canvas></div>
+          </div>
+
+          <!-- SOC Chart -->
+          <div class="panel ch-s">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <div class="panel-dot"></div>
+                <div class="panel-title">State of Charge</div>
+              </div>
+              <div class="panel-right">
+                <div class="panel-live-val" id="ch-val-s">—</div>
+                <div class="panel-unit-tag">%</div>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="chartS"></canvas></div>
+          </div>
+
+          <!-- Power Chart -->
+          <div class="panel ch-p">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <div class="panel-dot"></div>
+                <div class="panel-title">Transfer Power</div>
+              </div>
+              <div class="panel-right">
+                <div class="panel-live-val" id="ch-val-p">—</div>
+                <div class="panel-unit-tag">W</div>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="chartP"></canvas></div>
+          </div>
+
+        </div>
+
+        <!-- Bottom: log + gauge -->
+        <div class="bottom-row">
+
+          <div class="log-panel">
+            <div class="panel-header">
+              <div class="panel-title">Data Log</div>
+              <div class="panel-meta" id="logMeta">0 entries</div>
+            </div>
+            <div class="log-table-head">
+              <span>Time</span>
+              <span style="text-align:right">V (V)</span>
+              <span style="text-align:right">I (A)</span>
+              <span style="text-align:right">SOC %</span>
+              <span style="text-align:right">P (W)</span>
+            </div>
+            <div class="log-scroll" id="logScroll">
+              <div style="color:var(--txt-2);font-size:11px;padding:16px;text-align:center;letter-spacing:1px;">
+                Awaiting Simulink data…
+              </div>
+            </div>
+          </div>
+
+          <div class="gauge-panel">
+            <div class="panel-header">
+              <div class="panel-title">Battery SOC</div>
+              <div class="panel-meta" id="gaugeMeta">0%</div>
+            </div>
+            <div class="gauge-body">
+              <div class="gauge-svg-wrap">
+                <svg viewBox="0 0 200 120" fill="none">
+                  <!-- Track -->
+                  <path d="M 18 108 A 82 82 0 0 1 182 108" stroke="var(--txt-3)" stroke-width="13"
+                    stroke-linecap="round" />
+                  <!-- Filled -->
+                  <path id="gArc" d="M 18 108 A 82 82 0 0 1 182 108" stroke="var(--amber)" stroke-width="13"
+                    stroke-linecap="round" stroke-dasharray="0 257.6" style="transition:stroke-dasharray 0.85s cubic-bezier(0.4,0,0.2,1),stroke 0.4s;
+                         filter:drop-shadow(0 0 10px rgba(255,179,71,0.55));" />
+                  <!-- Tick marks -->
+                  <line x1="18" y1="108" x2="27" y2="108" stroke="var(--txt-3)" stroke-width="1.5" />
+                  <line x1="100" y1="26" x2="100" y2="35" stroke="var(--txt-3)" stroke-width="1.5" />
+                  <line x1="182" y1="108" x2="173" y2="108" stroke="var(--txt-3)" stroke-width="1.5" />
+                </svg>
+                <div class="gauge-center">
+                  <div class="gauge-num" id="gaugeNum">0.0</div>
+                  <div class="gauge-lbl">SOC %</div>
+                </div>
+              </div>
+              <div class="gauge-scale">
+                <span>0%</span><span>50%</span><span>100%</span>
+              </div>
+              <div class="gauge-states">
+                <span>Empty</span><span>Half</span><span>Full</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /app -->
+
+  <script src="{{ url_for('static', filename='index.js') }}"></script>
+</body>
+
+</html>

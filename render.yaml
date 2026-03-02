@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ev-wpt-dashboard
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: MQTT_BROKER
+        value: w11117bb.ala.us-east-1.emqxsl.com
+      - key: MQTT_PORT
+        value: 8883
+      - key: MQTT_TOPIC
+        value: ev/voltage
+      - key: MQTT_USERNAME
+        value: Ev_project
+      - key: MQTT_PASSWORD
+        sync: false        # <- Render will prompt you to set this secretly
+      - key: SECRET_KEY
+        generateValue: true
