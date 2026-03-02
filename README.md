@@ -27,7 +27,7 @@ This project demonstrates a complete IoT → Cloud → Web Dashboard pipeline su
 ## 🏗️ System Architecture
 
 ```
-Simulink / IoT Device
+Simulink / MATLAB
         │
         ▼
    MQTT over TLS
